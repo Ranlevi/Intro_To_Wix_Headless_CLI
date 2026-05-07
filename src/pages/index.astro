@@ -2,19 +2,19 @@
 import Layout from "../layouts/Layout.astro";
 
 const galleryItems = [
-	{ src: "/images/gig-1.jpeg", caption: "Live set" },
-	{ src: "/images/gig-2.jpeg", caption: "Stage lights" },
-	{ src: "/images/gig-3.jpeg", caption: "Crowd energy" },
-	{ src: "/images/gig-4.jpeg", caption: "On stage" },
-	{ src: "/images/gig-5.jpeg", caption: "Guitar break" },
-	{ src: "/images/gig-6.jpeg", caption: "Full volume" },
-	{ src: "/images/gig-7.jpeg", caption: "Late show" },
-	{ src: "/images/gig-8.jpeg", caption: "Soundcheck" },
-	{ src: "/images/gig-9.jpeg", caption: "Encore" },
-	{ src: "/images/gig-10.jpeg", caption: "Band moment" },
-	{ src: "/images/gig-11.jpeg", caption: "Venue night" },
-	{ src: "/images/gig-12.jpeg", caption: "Final chord" },
-	{ src: "/images/gig-13.jpeg", caption: "Backstage" },
+	{ src: "/images/gig-1.jpeg", alt: "Aliat Gag live set photo" },
+	{ src: "/images/gig-2.jpeg", alt: "Aliat Gag stage lights photo" },
+	{ src: "/images/gig-3.jpeg", alt: "Aliat Gag crowd energy photo" },
+	{ src: "/images/gig-4.jpeg", alt: "Aliat Gag on stage photo" },
+	{ src: "/images/gig-5.jpeg", alt: "Aliat Gag guitar break photo" },
+	{ src: "/images/gig-6.jpeg", alt: "Aliat Gag full volume photo" },
+	{ src: "/images/gig-7.jpeg", alt: "Aliat Gag late show photo" },
+	{ src: "/images/gig-8.jpeg", alt: "Aliat Gag soundcheck photo" },
+	{ src: "/images/gig-9.jpeg", alt: "Aliat Gag encore photo" },
+	{ src: "/images/gig-10.jpeg", alt: "Aliat Gag band moment photo" },
+	{ src: "/images/gig-11.jpeg", alt: "Aliat Gag venue night photo" },
+	{ src: "/images/gig-12.jpeg", alt: "Aliat Gag final chord photo" },
+	{ src: "/images/gig-13.jpeg", alt: "Aliat Gag backstage photo" },
 ];
 ---
 
@@ -53,29 +53,41 @@ const galleryItems = [
 					<h2 id="booking-title">Bring Aliat Gag to your next show.</h2>
 					<p>
 						Tell us about the event, date, and vibe. We will use your request to
-          follow up through Wix CRM and keep the gig details attached to your
-          contact record.
-					</p>					
+						follow up through Wix CRM and keep the gig details attached to your
+						contact record.
+					</p>
 				</div>
 
-				<form class="booking-form" aria-label="Booking form">
+				<form
+					class="booking-form"
+					action="/api/book-gig"
+					method="post"
+					aria-label="Booking form"
+					data-booking-form
+					novalidate
+				>
 					<label>
 						Name
-						<input type="text" name="name" placeholder="Your name" />
+						<input type="text" name="name" placeholder="Your name" required />
 					</label>
 					<label>
 						Email
-						<input type="email" name="email" placeholder="you@example.com" />
+						<input type="email" name="email" placeholder="you@example.com" required />
 					</label>
 					<label>
 						Event date
-						<input type="date" name="event-date" />
+						<input type="date" name="event-date" required />
 					</label>
 					<label>
 						Message
-						<textarea name="message" rows="5" placeholder="Tell us about the event"></textarea>
+						<textarea
+							name="message"
+							rows="5"
+							placeholder="Tell us about the event"
+							required></textarea>
 					</label>
-					<button type="button">Send request</button>
+					<button type="submit">Send request</button>
+					<p class="form-status" data-booking-status role="status" aria-live="polite"></p>
 				</form>
 			</div>
 		</section>
@@ -85,10 +97,10 @@ const galleryItems = [
 			<h2 id="gallery-title">Live moments</h2>
 			<div class="gallery-grid">
 				{
-					galleryItems.map(({ src, caption }) => (
+					galleryItems.map(({ src, alt }) => (
 						<figure class="gallery-card">
 							<div class="gallery-image">
-								<img src={src} alt={`Aliat Gag ${caption.toLowerCase()} photo`} loading="lazy" />
+								<img src={src} alt={alt} loading="lazy" />
 							</div>
 						</figure>
 					))
@@ -225,6 +237,11 @@ const galleryItems = [
 		color: #16120f;
 	}
 
+	.booking-form button:disabled {
+		cursor: wait;
+		opacity: 0.64;
+	}
+
 	.hero-image,
 	.gallery-image {
 		border: 2px solid rgba(245, 239, 230, 0.56);
@@ -300,15 +317,6 @@ const galleryItems = [
 		margin-top: 22px;
 	}
 
-	.booking-copy ul {
-		display: grid;
-		gap: 12px;
-		margin: 28px 0 0;
-		padding-left: 20px;
-		color: #eadfce;
-		line-height: 1.55;
-	}
-
 	.booking-form {
 		display: grid;
 		gap: 16px;
@@ -345,6 +353,22 @@ const galleryItems = [
 
 	input[type="date"] {
 		color-scheme: light;
+	}
+
+	.form-status {
+		min-height: 1.5em;
+		color: #f0c66d;
+		font-size: 0.95rem;
+		font-weight: 800;
+		line-height: 1.5;
+	}
+
+	.form-status[data-status="success"] {
+		color: #b7e083;
+	}
+
+	.form-status[data-status="error"] {
+		color: #ff9b8f;
 	}
 
 	.gallery-section h2 {
@@ -426,3 +450,78 @@ const galleryItems = [
 		}
 	}
 </style>
+
+<script>
+	const bookingForm   = document.querySelector("[data-booking-form]");
+	const bookingStatus = document.querySelector("[data-booking-status]");
+
+	const setBookingStatus = (message, type = "neutral") => {
+		//Safey check
+		if (!(bookingStatus instanceof HTMLElement)) {
+			return;
+		}
+
+		//Store the statue message and type (success/error)
+		bookingStatus.textContent = message;
+		bookingStatus.dataset.status = type;
+	};
+
+	if (bookingForm instanceof HTMLFormElement) {
+		const submitButton = bookingForm.querySelector("button[type='submit']");
+
+		bookingForm.addEventListener("submit", async (event) => {
+
+			event.preventDefault();
+
+			//Check required fields are not empty, email is valid.
+			//If the form is not valid, show a custom message, then ask
+			//the browser to point out the speicific invalid field.
+			if (!bookingForm.checkValidity()) {
+				setBookingStatus("Please fill the missing information.", "error");
+				bookingForm.reportValidity();
+				return;
+			}
+
+			//Disable the submit button to prevent sending the form twice.
+			if (submitButton instanceof HTMLButtonElement) {
+				submitButton.disabled = true;
+			}
+
+			setBookingStatus("Sending booking request...");
+
+			try {
+				//Send the form data to the API endpoint.
+				//The action sends the POST request to /api/book-gig
+				//Creates a FormData object from the form's fields.
+				//Pause until the server responds.
+				const response = await fetch(bookingForm.action, {
+					method: "POST",
+					body: new FormData(bookingForm),
+				});
+
+				//Parsing the response as JSON. If the response is not
+				//a valid JSON, use an empty object instead of crashing.
+				const result = await response.json().catch(() => ({}));
+
+				if (response.ok && result.ok) {
+					bookingForm.reset();
+					setBookingStatus("Booking request sent.", "success");
+					return;
+				}
+
+				if (response.status === 400) {
+					setBookingStatus("Please fill the missing information.", "error");
+					return;
+				}
+
+				setBookingStatus("Something went wrong. Please try again.", "error");
+			} catch {
+				setBookingStatus("Something went wrong. Please try again.", "error");
+			} finally {
+				if (submitButton instanceof HTMLButtonElement) {
+					submitButton.disabled = false;
+				}
+			}
+		});
+	}
+</script>
