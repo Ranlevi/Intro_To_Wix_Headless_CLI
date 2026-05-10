@@ -5,14 +5,16 @@ import { AppStrategy, createClient } from "@wix/sdk";
 export const prerender = false;
 
 type BookingPayload = {
-	name: string;
-	email: string;
-	eventDate: string;
-	message: string;
+	name: 		string;
+	email: 		string;
+	eventDate: 	string;
+	message: 	string;
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+//A helper function for crafting a browser-standard Response object,
+//with a JSON text.
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
 	new Response(JSON.stringify(body), {
 		status,
@@ -21,6 +23,7 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) =>
 		},
 	});
 
+//A helper function for reading an Astro/Vite enviroment variable.
 const getEnv = (key: string) => {
 	const value = import.meta.env[key];
 
@@ -68,6 +71,8 @@ const parseBookingPayload = async (request: Request): Promise<BookingPayload | n
 	return payload;
 };
 
+//Wix Contacts expect a first and last names, but the form has one field. 
+//So here we split the name ("John Smith") into first and last.
 const splitName = (name: string) => {
 	const [first, ...rest] = name.split(/\s+/);
 
@@ -77,6 +82,9 @@ const splitName = (name: string) => {
 	};
 };
 
+//Create an authenticated Wix SDK client that the endpoint can use to call
+//the Wix CRM. Credentials are taken from .env.local. 
+//modules test the SDK which Wix APIs we want available on this client.
 const createWixClient = () =>
 	createClient({
 		auth: AppStrategy({
@@ -90,6 +98,9 @@ const createWixClient = () =>
 		},
 	});
 
+//Looks for an existing Wix contact with the submitted email address.
+//We only ask for one matching result, because we don't need anything else.
+//If no contact is found - result.items[0] is undefined.	
 const findContactByEmail = async (wixClient: ReturnType<typeof createWixClient>, email: string) => {
 	const result = await wixClient.contacts
 		.queryContacts()
@@ -99,6 +110,7 @@ const findContactByEmail = async (wixClient: ReturnType<typeof createWixClient>,
 
 	return result.items[0];
 };
+
 
 const createBookingNoteText = ({ name, email, eventDate, message }: BookingPayload) =>
 	[
@@ -112,6 +124,7 @@ const createBookingNoteText = ({ name, email, eventDate, message }: BookingPaylo
 		message,
 	].join("\n");
 
+
 export const POST: APIRoute = async ({ request }) => {
 	const payload = await parseBookingPayload(request);
 
@@ -122,6 +135,9 @@ export const POST: APIRoute = async ({ request }) => {
 	try {
 		const wixClient = createWixClient();
 		const existingContact = await findContactByEmail(wixClient, payload.email);
+
+		//If the CRM already has a contact with the same email - use it, else
+		//create a new contact.
 		const contact =
 			existingContact ??
 			(
